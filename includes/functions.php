@@ -3,6 +3,9 @@
  * Helper Functions for Dormitory Clearance System
  */
 
+// Include database functions
+require_once 'db_functions.php';
+
 // Function to get initials from name
 function getInitials($name) {
     $nameParts = explode(' ', $name);
@@ -92,4 +95,116 @@ function getCompletionClass($status) {
 function isPageActive($page) {
     $currentPage = basename($_SERVER['PHP_SELF']);
     return $currentPage === $page;
+}
+
+// Authentication related functions
+
+/**
+ * Check if user is logged in
+ *
+ * @return bool True if user is logged in, false otherwise
+ */
+function isLoggedIn() {
+    return isset($_SESSION['user_id']) && isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true;
+}
+
+/**
+ * Redirect if user is not logged in
+ *
+ * @param string $redirectTo Page to redirect to if not logged in
+ * @return void
+ */
+function requireLogin($redirectTo = 'login.php') {
+    if (!isLoggedIn()) {
+        header("Location: $redirectTo");
+        exit;
+    }
+}
+
+/**
+ * Check if user has a specific role
+ *
+ * @param string|array $roles Role or array of roles to check
+ * @return bool True if user has any of the specified roles, false otherwise
+ */
+function hasRole($roles) {
+    if (!isLoggedIn() || !isset($_SESSION['user_role'])) {
+        return false;
+    }
+    
+    if (is_array($roles)) {
+        return in_array($_SESSION['user_role'], $roles);
+    } else {
+        return $_SESSION['user_role'] === $roles;
+    }
+}
+
+/**
+ * Redirect if user doesn't have required role
+ *
+ * @param string|array $roles Role or array of roles required
+ * @param string $redirectTo Page to redirect to if user doesn't have required role
+ * @return void
+ */
+function requireRole($roles, $redirectTo = 'index.php') {
+    if (!hasRole($roles)) {
+        $_SESSION['error'] = "You don't have permission to access that page.";
+        header("Location: $redirectTo");
+        exit;
+    }
+}
+
+/**
+ * Get current user ID
+ *
+ * @return int|null User ID if logged in, null otherwise
+ */
+function getCurrentUserId() {
+    return isLoggedIn() ? $_SESSION['user_id'] : null;
+}
+
+/**
+ * Get current username
+ *
+ * @return string|null Username if logged in, null otherwise
+ */
+function getCurrentUsername() {
+    return isLoggedIn() ? $_SESSION['user_name'] : null;
+}
+
+/**
+ * Display flash message and clear it from session
+ *
+ * @param string $type Message type (success, error, warning, info)
+ * @return string HTML for flash message or empty string if no message
+ */
+function displayFlashMessage($type) {
+    $output = '';
+    
+    if (isset($_SESSION[$type])) {
+        $message = $_SESSION[$type];
+        unset($_SESSION[$type]);
+        
+        $classes = '';
+        switch ($type) {
+            case 'success':
+                $classes = 'bg-green-100 border-green-400 text-green-700';
+                break;
+            case 'error':
+                $classes = 'bg-red-100 border-red-400 text-red-700';
+                break;
+            case 'warning':
+                $classes = 'bg-yellow-100 border-yellow-400 text-yellow-700';
+                break;
+            case 'info':
+                $classes = 'bg-blue-100 border-blue-400 text-blue-700';
+                break;
+        }
+        
+        $output = '<div class="' . $classes . ' px-4 py-3 rounded mb-4 border" role="alert">';
+        $output .= '<span class="block sm:inline">' . $message . '</span>';
+        $output .= '</div>';
+    }
+    
+    return $output;
 }
